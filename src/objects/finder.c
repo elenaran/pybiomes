@@ -5,6 +5,10 @@
 #include <Python.h>
 #include "structmember.h"
 
+// Have to manually declare the function prototype here since it's not declared in
+// finders.h, and causes issues when Python has to guess the return type.
+uint64_t getPopulationSeed(int mc, uint64_t ws, int x, int z);
+
 #include "../external/cubiomes/finders.h"
 
 typedef struct {
@@ -45,6 +49,28 @@ static int Finder_init(FinderObject *self, PyObject *args, PyObject *kwds) {
     self->version = version;
 
     return 0;
+}
+
+static PyObject *Finder_set_attempt_seed(FinderObject *self, PyObject *args) {
+    uint64_t s;
+    int cx, cz;
+    
+    if (!PyArg_ParseTuple(args, "Kii", &s, &cx, &cz)) {
+        return NULL;
+    }
+    setAttemptSeed(&s, cx, cz);
+    return PyLong_FromUnsignedLongLong(s);
+}
+
+static PyObject *Finder_get_population_seed(FinderObject *self, PyObject *args) {
+    long long ws;
+    int x, z;
+    
+    if (!PyArg_ParseTuple(args, "Kii", &ws, &x, &z)) {
+        return NULL;
+    }
+    uint64_t result = getPopulationSeed(self->version, ws, x, z);
+    return PyLong_FromUnsignedLongLong(result);
 }
 
 static PyObject *Finder_get_structure_config(FinderObject *self, PyObject *args) {
@@ -258,17 +284,62 @@ static PyObject *Finder_get_structure_pos(FinderObject *self, PyObject *args) {
     return (PyObject *)ret;
 }
 
+static PyObject *Finder_get_variant(FinderObject *self, PyObject *args) {
+    int structType;
+    unsigned long long seed;
+    int blockX, blockZ, biomeID;
+
+    if (!PyArg_ParseTuple(args, "iKiii", &structType, &seed, &blockX, &blockZ, &biomeID)) {
+        return NULL;
+    }
+
+    StructureVariant sv;
+    int success = getVariant(&sv, structType, self->version, seed, blockX, blockZ, biomeID);
+
+    if (success == 0) {
+        Py_RETURN_NONE; 
+    }
+
+    PyObject *dict = PyDict_New();
+    if (!dict) {
+        return PyErr_NoMemory();
+    }
+
+    PyDict_SetItemString(dict, "abandoned", PyBool_FromLong(sv.abandoned));
+    PyDict_SetItemString(dict, "giant", PyBool_FromLong(sv.giant));
+    PyDict_SetItemString(dict, "underground", PyBool_FromLong(sv.underground));
+    PyDict_SetItemString(dict, "airpocket", PyBool_FromLong(sv.airpocket));
+    PyDict_SetItemString(dict, "basement", PyBool_FromLong(sv.basement));
+    PyDict_SetItemString(dict, "cracked", PyBool_FromLong(sv.cracked));
+    PyDict_SetItemString(dict, "size", PyLong_FromLong(sv.size));
+    PyDict_SetItemString(dict, "start", PyLong_FromLong(sv.start));
+    PyDict_SetItemString(dict, "biome", PyLong_FromLong(sv.biome));
+    PyDict_SetItemString(dict, "rotation", PyLong_FromLong(sv.rotation));
+    PyDict_SetItemString(dict, "mirror", PyLong_FromLong(sv.mirror));
+    PyDict_SetItemString(dict, "x", PyLong_FromLong(sv.x));
+    PyDict_SetItemString(dict, "y", PyLong_FromLong(sv.y));
+    PyDict_SetItemString(dict, "z", PyLong_FromLong(sv.z));
+    PyDict_SetItemString(dict, "sx", PyLong_FromLong(sv.sx));
+    PyDict_SetItemString(dict, "sy", PyLong_FromLong(sv.sy));
+    PyDict_SetItemString(dict, "sz", PyLong_FromLong(sv.sz));
+
+    return dict;
+}
+
 static PyMemberDef Finder_members[] = {
     {NULL}  /* Sentinel */
 };
 
 static PyMethodDef Finder_methods[] = {
+    {"set_attempt_seed", (PyCFunction)Finder_set_attempt_seed, METH_VARARGS, "Sets an attempt seed from a population seed and coordinates"},
+    {"get_population_seed", (PyCFunction)Finder_get_population_seed, METH_VARARGS, "Generates a population seed from a world seed and coordinates."},
     {"get_structure_config", (PyCFunction)Finder_get_structure_config, METH_VARARGS, "Finds a structure's configuration parameters"},
     {"is_stronghold_biome", (PyCFunction)Finder_is_stronghold_biome, METH_VARARGS, "Checks if the biome is valid for stronghold placement"},
     {"init_first_stronghold", (PyCFunction)Finder_init_first_stronghold, METH_VARARGS, "Initialises first stronghold"},
     {"next_stronghold", (PyCFunction)Finder_next_stronghold, METH_VARARGS, "Finds next stronghold"},
     {"chunk_generate_rnd", (PyCFunction)Finder_chunk_generate_rnd, METH_VARARGS, "Initialises and returns a random seed used in the chunk generation"},
     {"get_structure_pos", (PyCFunction)Finder_get_structure_pos, METH_VARARGS, "Finds a structures position within the given region"},
+	{"get_variant", (PyCFunction)Finder_get_variant, METH_VARARGS, "Gets a structures variant data (rotation, bounding box, etc.)"},
     {NULL}  /* Sentinel */
 };
 

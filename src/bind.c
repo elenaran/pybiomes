@@ -48,6 +48,10 @@ PyMODINIT_FUNC PyInit_pybiomes(void){
     if (PyType_Ready(&RngType) < 0) {
         return NULL;
     }
+
+    if (PyType_Ready(&XoroshiroType) < 0) {
+        return NULL;
+    }
     
     PyObject *base = PyModule_Create(&pybiomes);
 
@@ -86,6 +90,9 @@ PyMODINIT_FUNC PyInit_pybiomes(void){
 	
     Py_INCREF(&RngType);
     PyModule_AddObject(base, "Rng", (PyObject *)&RngType);
+	
+    Py_INCREF(&XoroshiroType);
+    PyModule_AddObject(base, "Xoroshiro", (PyObject *)&XoroshiroType);
 
     return base; 
 }
