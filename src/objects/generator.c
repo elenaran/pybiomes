@@ -89,29 +89,48 @@ static PyObject *Generator_get_biome_at(GeneratorObject *self, PyObject *args) {
 }
 
 static PyObject *Generator_gen_biomes(GeneratorObject *self, PyObject *args) {
-    PyObject *range;
-
-    if (!PyArg_ParseTuple(args, "O", &range)) {
+    int x, y, z, sx, sy, sz, scale;
+    
+    // The C function is now configured to expect seven integers.
+    if (!PyArg_ParseTuple(args, "iiiiiii", &x, &y, &z, &sx, &sy, &sz, &scale)) {
         return NULL;
     }
 
-    RangeObject *range_cast = (RangeObject *)range;
-
-    Range r = range_cast->range;
+    Range r;
+    r.scale = scale;
+    r.x = x;
+    r.y = y;
+    r.z = z;
+    r.sx = sx;
+    r.sy = sy;
+    r.sz = sz;
 
     int *biomeIds = allocCache(&self->generator, r);
+    if (!biomeIds) {
+        PyErr_SetString(PyExc_MemoryError, "Failed to allocate memory for biome cache.");
+        return NULL;
+    }
+
     genBiomes(&self->generator, biomeIds, r);
 
     size_t len = getMinCacheSize(&self->generator, r.scale, r.sx, r.sy, r.sz);
-
     PyObject *list = PyList_New(len);
-
-    for (size_t i = 0; i < len; i++) {
-        PyList_SetItem(list, i, PyLong_FromLong(biomeIds[i]));
+    if (!list) {
+        free(biomeIds);
+        return NULL;
     }
 
+    for (size_t i = 0; i < len; i++) {
+        PyObject *biome_py_obj = PyLong_FromLong(biomeIds[i]);
+        if (!biome_py_obj) {
+            Py_DECREF(list);
+            free(biomeIds);
+            return NULL;
+        }
+        PyList_SetItem(list, i, biome_py_obj);
+    }
+    
     free(biomeIds);
-
     return list;
 }
 

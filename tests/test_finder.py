@@ -8,6 +8,20 @@ from pybiomes.versions import MC_1_21_WD
 def finder():
     return Finder(version=MC_1_21_WD)
 
+def test_set_attempt_seed(finder):
+    seed = 1234567890
+    cx, cz = 123, 456
+    updated_seed = finder.set_attempt_seed(seed, cx, cz)
+    assert isinstance(updated_seed, int)
+    assert updated_seed == 206826366665763
+
+def test_get_population_seed(finder):
+    world_seed = 1234567890
+    x, z = 123, 456
+    population_seed = finder.get_population_seed(world_seed, x, z)
+    assert isinstance(population_seed, int)
+    assert population_seed == 9200318741546110857
+
 def test_get_structure_config(finder):
     result = finder.get_structure_config(Village)
     assert isinstance(result, dict)
@@ -44,6 +58,15 @@ def test_init_first_stronghold(finder):
     assert sh['angle'] == 4.5127238872158175
     assert sh['dist'] == 166.02303278628128
     assert sh['rnds'] == 197462054985395
+
+def test_get_spawn(finder):
+    seed = 1234567890
+    generator = Generator(MC_1_21_WD, seed)
+    spawn_pos = finder.get_spawn(generator)
+    
+    assert isinstance(spawn_pos, Pos)
+    assert spawn_pos.x == 8
+    assert spawn_pos.z == 8
 
 def test_next_stronghold(finder):
     sh = {
@@ -88,3 +111,24 @@ def test_get_structure_pos(finder):
     pos = finder.get_structure_pos(structure, seed, reg_x, reg_z)
     assert pos is None or isinstance(pos, Pos)
     assert pos.x == 256 and pos.z == 64
+
+def test_get_variant(finder):
+    struct_type = Village
+    seed = 1234567890
+    block_x, block_z = 288, 1984
+    biome_id = plains
+    
+    variant = finder.get_variant(struct_type, seed, block_x, block_z, biome_id)
+    
+    assert isinstance(variant, dict)
+    assert 'abandoned' in variant
+    assert 'start' in variant
+    assert 'rotation' in variant
+
+    assert variant['abandoned'] == False
+    assert variant['start'] == 0
+    assert variant['rotation'] == 1
+    
+    invalid_biome_id = 999
+    variant_none = finder.get_variant(struct_type, seed, block_x, block_z, invalid_biome_id)
+    assert variant_none is None
