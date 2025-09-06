@@ -5,7 +5,11 @@
 #include <Python.h>
 #include "structmember.h"
 
+#include "../external/cubiomes/biomenoise.h"
 #include "../external/cubiomes/generator.h"
+
+extern PyTypeObject SurfaceNoiseType;
+
 
 typedef struct {
     PyObject_HEAD
@@ -123,11 +127,54 @@ static PyObject *Generator_is_viable_structure_pos(GeneratorObject *self, PyObje
     return PyBool_FromLong(ret);
 }
 
+static PyObject *Generator_map_approx_height(GeneratorObject *self, PyObject *args) {
+    PyObject *sn_obj;
+    int x, z, w, h;
+    
+    if (!PyArg_ParseTuple(args, "O!iiii", &SurfaceNoiseType, &sn_obj, &x, &z, &w, &h)) {
+        return NULL;
+    }
+    
+    SurfaceNoiseObject *sn = (SurfaceNoiseObject *)sn_obj;
+
+    float *y = (float *)malloc(w * h * sizeof(float));
+    int *ids = (int *)malloc(w * h * sizeof(int));
+    
+    if (!y || !ids) {
+        PyErr_SetString(PyExc_MemoryError, "Failed to allocate memory.");
+        free(y);
+        free(ids);
+        return NULL;
+    }
+	
+    int result = mapApproxHeight(y, ids, &self->generator, &sn->noise, x, z, w, h);
+
+    if (result != 0) {
+        PyErr_SetString(PyExc_RuntimeError, "mapApproxHeight returned a non-zero value, indicating an error.");
+        free(y);
+        free(ids);
+        return NULL;
+    }
+    PyObject *y_list = PyList_New(w * h);
+    PyObject *ids_list = PyList_New(w * h);
+    
+    for (int i = 0; i < w * h; i++) {
+        PyList_SetItem(y_list, i, PyFloat_FromDouble(y[i]));
+        PyList_SetItem(ids_list, i, PyLong_FromLong(ids[i]));
+    }
+    
+    free(y);
+    free(ids);
+    
+    return PyTuple_Pack(2, y_list, ids_list);
+}
+
 static PyMethodDef Generator_methods[] = {
     {"apply_seed", (PyCFunction) Generator_apply_seed, METH_VARARGS, "Applies a seed to the generator"},
     {"get_biome_at", (PyCFunction) Generator_get_biome_at, METH_VARARGS, "Get the biome at the specified location"},
     {"gen_biomes", (PyCFunction) Generator_gen_biomes, METH_VARARGS, "Get the biome at the specified location"},
     {"is_viable_structure_pos", (PyCFunction) Generator_is_viable_structure_pos, METH_VARARGS, "Get the biome at the specified location"},
+    {"map_approx_height", (PyCFunction)Generator_map_approx_height, METH_VARARGS, "Maps an approximation of the Overworld surface height."},
     {NULL}  /* Sentinel */
 };
 

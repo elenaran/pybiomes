@@ -177,6 +177,14 @@ static PyObject *Xoroshiro_next_long_j(XoroshiroObject *self, PyObject *args) {
     return PyLong_FromUnsignedLongLong(xNextLongJ(&(self->state)));
 }
 
+static PyObject *Xoroshiro_next_int_j(XoroshiroObject *self, PyObject *args) {
+    uint32_t n;
+    if (!PyArg_ParseTuple(args, "I", &n)) {
+        return NULL;
+    }
+    return PyLong_FromLong(xNextIntJ(&(self->state), n));
+}
+
 static PyMethodDef Xoroshiro_methods[] = {
     {"set_seed", (PyCFunction)Xoroshiro_set_seed, METH_VARARGS, "Set the seed value"},
     {"next_long", (PyCFunction)Xoroshiro_next_long, METH_NOARGS, "Generate the next long random number"},
@@ -184,6 +192,7 @@ static PyMethodDef Xoroshiro_methods[] = {
     {"next_float", (PyCFunction)Xoroshiro_next_float, METH_NOARGS, "Generate the next float random number"},
     {"next_double", (PyCFunction)Xoroshiro_next_double, METH_NOARGS, "Generate the next double random number"},
     {"next_long_j", (PyCFunction)Xoroshiro_next_long_j, METH_NOARGS, "Generate the next long random number from two separate xNextLong calls"},
+    {"next_int_j", (PyCFunction)Xoroshiro_next_int_j, METH_VARARGS, "Generate the next int random number up to n using the worldgenrandom method"},
     {NULL}  /* Sentinel */
 };
 

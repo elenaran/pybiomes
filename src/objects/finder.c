@@ -247,7 +247,31 @@ static PyObject *Finder_next_stronghold(FinderObject *self, PyObject *args) {
 	
 	return py_tuple;
 }
+
+
+static PyObject *Finder_get_spawn(FinderObject *self, PyObject *args) {
+    PyObject *gen_obj;
+
+    if (!PyArg_ParseTuple(args, "O!", &GeneratorType, &gen_obj)) {
+        return NULL;
+    }
+    // Check if the argument is a GeneratorObject
+    if (!PyObject_TypeCheck(gen_obj, &GeneratorType)) {
+        PyErr_SetString(PyExc_TypeError, "Parameter must be a GeneratorObject");
+        return NULL;
+    }
 	
+	GeneratorObject *generator_obj = (GeneratorObject *)gen_obj;
+	Generator g = generator_obj->generator;
+	
+    Pos spawn_pos = getSpawn(&g);
+    PosObject *ret = Pos_new(&PosType, NULL, NULL);
+  
+    ret->pos.x = spawn_pos.x;
+    ret->pos.z = spawn_pos.z;
+	return (PyObject *)ret;
+}
+
 
 static PyObject *Finder_chunk_generate_rnd(FinderObject *self, PyObject *args) {
     uint64_t seed;
@@ -337,6 +361,7 @@ static PyMethodDef Finder_methods[] = {
     {"is_stronghold_biome", (PyCFunction)Finder_is_stronghold_biome, METH_VARARGS, "Checks if the biome is valid for stronghold placement"},
     {"init_first_stronghold", (PyCFunction)Finder_init_first_stronghold, METH_VARARGS, "Initialises first stronghold"},
     {"next_stronghold", (PyCFunction)Finder_next_stronghold, METH_VARARGS, "Finds next stronghold"},
+    {"get_spawn", (PyCFunction)Finder_get_spawn, METH_VARARGS, "Gets world spawn position"},
     {"chunk_generate_rnd", (PyCFunction)Finder_chunk_generate_rnd, METH_VARARGS, "Initialises and returns a random seed used in the chunk generation"},
     {"get_structure_pos", (PyCFunction)Finder_get_structure_pos, METH_VARARGS, "Finds a structures position within the given region"},
 	{"get_variant", (PyCFunction)Finder_get_variant, METH_VARARGS, "Gets a structures variant data (rotation, bounding box, etc.)"},
